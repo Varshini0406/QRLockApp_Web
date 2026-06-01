@@ -1,0 +1,67 @@
+version: '3.9'
+
+services:
+
+  # ── PHP + Apache (Frontend + Backend) ──────────────────────
+  app:
+    build: .
+    container_name: qrlockapp_web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+      DB_USER: qrlockuser
+      DB_PASS: qrlockpass
+      DB_NAME: qrlockapp
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - qrlock_net
+
+  # ── MySQL Database ──────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: qrlockapp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: qrlockapp
+      MYSQL_USER: qrlockuser
+      MYSQL_PASSWORD: qrlockpass
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./backend/qrlockapp_schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - qrlock_net
+
+  # ── phpMyAdmin (optional DB GUI) ────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: qrlockapp_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: qrlockuser
+      PMA_PASSWORD: qrlockpass
+    depends_on:
+      - db
+    networks:
+      - qrlock_net
+
+volumes:
+  db_data:
+
+networks:
+  qrlock_net:
+    driver: bridge
