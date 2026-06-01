@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QRLockApp</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- jsQR for real QR code decoding -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f7f7f5;--surface:#fff;--surface2:#f2f2ef;--surface3:#eaeae6;
+  --border:#e4e4e0;--border2:#d0d0ca;
+  --text:#1a1a18;--text2:#6b6b65;--text3:#9b9b95;
+  --accent:#1a1a18;--accent-bg:#1a1a18;--accent-text:#fff;
+  --green:#16a34a;--green-bg:#dcfce7;--green-border:#bbf7d0;
+  --red:#dc2626;--red-bg:#fee2e2;--red-border:#fecaca;
+  --orange:#d97706;--orange-bg:#fef3c7;
+  --blue:#2563eb;--blue-bg:#dbeafe;
+  --radius:10px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 4px 20px rgba(0,0,0,.09);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+input,select,textarea{font-family:inherit;font-size:14px;outline:none}
+a{text-decoration:none;color:inherit}
+
+/* ── SHELL ── */
+#app{display:flex;min-height:100vh}
+#sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+#main{margin-left:230px;flex:1;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar-logo{padding:18px 18px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.logo-mark{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--accent-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.logo-text{font-weight:600;font-size:14px;letter-spacing:-.02em}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.nav-section{padding:14px 14px 5px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;margin:1px 8px;border-radius:8px;cursor:pointer;transition:all .15s;color:var(--text2);font-size:13px;font-weight:500;user-select:none}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:#fff}
+.nav-icon{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center}
+.nav-item.active .nav-badge{background:rgba(255,255,255,.3)}
+.sidebar-user{margin-top:auto;padding:10px;border-top:1px solid var(--border)}
+.user-card{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .15s}
+.user-card:hover{background:var(--surface2)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--surface3);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0}
+.user-name{font-size:13px;font-weight:500;line-height:1.3}
+.user-number{font-size:11px;color:var(--text3)}
+
+/* ── TOPBAR ── */
+.topbar{height:54px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.topbar-sub{font-size:12px;color:var(--text3)}
+.topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ── PAGE ── */
+.page{padding:26px 26px;display:none}
+.page.active{display:block}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow)}
+.card-title{font-size:14px;font-weight:600}
+.card-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:8px}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px}
+.stat-value{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.stat-hint{font-size:11px;color:var(--text3);margin-top:5px}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;transition:all .15s;cursor:pointer;white-space:nowrap}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.btn-primary{background:var(--accent-bg);color:#fff;border:1px solid transparent}
+.btn-primary:hover{opacity:.85}
+.btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border2)}
+.btn-secondary:hover{background:var(--surface2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid transparent;padding:6px 10px}
+.btn-ghost:hover{background:var(--surface2)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.btn-danger:hover{opacity:.8}
+.btn-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.btn-success:hover{opacity:.8}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-sm svg{width:12px;height:12px}
+.btn-icon{width:30px;height:30px;padding:0;justify-content:center;border-radius:7px}
+
+/* ── FORMS ── */
+.form-group{margin-bottom:13px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;letter-spacing:.01em}
+.form-input{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;transition:border .15s}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+.form-input::placeholder{color:var(--text3)}
+select.form-input{cursor:pointer}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.form-error{font-size:11px;color:var(--red);margin-top:4px;display:flex;align-items:center;gap:4px}
+.form-hint{font-size:11px;color:var(--text3);margin-top:4px}
+.form-section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface2)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-orange{background:var(--orange-bg);color:var(--orange)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-gray{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* ── DEVICE CARDS ── */
+.device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.device-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow);transition:box-shadow .15s;display:flex;flex-direction:column}
+.device-card:hover{box-shadow:var(--shadow-lg)}
+.device-icon-wrap{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.device-icon-wrap svg{width:20px;height:20px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.device-icon-wrap.locked{background:#fef2f2}
+.device-icon-wrap.locked svg{stroke:var(--red)}
+.device-icon-wrap.unlocked{background:#f0fdf4}
+.device-icon-wrap.unlocked svg{stroke:var(--green)}
+.device-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.device-type{font-size:11px;color:var(--text3);margin-bottom:10px}
+.device-id-tag{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);background:var(--surface2);padding:3px 7px;border-radius:5px;display:inline-block;margin-bottom:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lock-toggle{display:flex;gap:7px;margin-top:auto}
+.lock-btn{flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid transparent;font-family:inherit}
+.lock-btn.do-lock{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.lock-btn.do-lock:hover:not(:disabled){opacity:.8}
+.lock-btn.do-unlock{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.lock-btn.do-unlock:hover:not(:disabled){opacity:.8}
+.lock-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:200;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:22px;width:440px;max-width:100%;box-shadow:var(--shadow-lg);animation:mUp .18s ease;max-height:90vh;overflow-y:auto}
+@keyframes mUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-size:15px;font-weight:600}
+.modal-close{width:28px;height:28px;border-radius:6px;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:all .15s}
+.modal-close:hover{background:var(--surface2);color:var(--text)}
+.modal-close svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;padding-top:14px;border-top:1px solid var(--border)}
+
+/* ── TOAST ── */
+#toast-wrap{position:fixed;bottom:22px;right:22px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:#1a1a18;color:#fff;padding:10px 15px;border-radius:9px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);animation:tIn .2s ease;min-width:180px;pointer-events:auto}
+.toast.success{background:#15803d}
+.toast.error{background:#b91c1c}
+.toast.warning{background:#b45309}
+@keyframes tIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+
+/* ── AUTH ── */
+#auth-screen{display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);flex-direction:column}
+#auth-screen.active{display:flex}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px;width:380px;max-width:95vw;box-shadow:var(--shadow-lg)}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;justify-content:center}
+.auth-logo-icon{width:40px;height:40px;background:var(--accent-bg);border-radius:11px;display:flex;align-items:center;justify-content:center}
+.auth-logo-icon svg{width:21px;height:21px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--surface2);padding:3px;border-radius:9px;margin-bottom:20px}
+.auth-tab{padding:7px;text-align:center;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--text3)}
+.auth-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.auth-footer{text-align:center;margin-top:12px;font-size:12px;color:var(--text3)}
+.auth-link{color:var(--text);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-color:var(--border2)}
+.demo-bar{margin-top:14px;padding:12px 14px;background:var(--surface2);border-radius:9px;text-align:center;font-size:12px;color:var(--text3);border:1px dashed var(--border2)}
+.demo-bar strong{color:var(--text);font-weight:600}
+
+/* ── SECTION HEADER ── */
+.section-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:12px}
+.section-title{font-size:17px;font-weight:600;letter-spacing:-.02em}
+.section-sub{font-size:13px;color:var(--text3);margin-top:2px}
+
+/* ── NOTIFY ── */
+.notify-item{display:flex;gap:11px;padding:13px 0;border-bottom:1px solid var(--border)}
+.notify-item:last-child{border-bottom:none}
+.notify-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.notify-dot.unread{background:var(--blue)}
+.notify-dot.read{background:var(--border2)}
+.notify-msg{font-size:13px;line-height:1.5}
+.notify-time{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* ── STAR RATING ── */
+.stars{display:flex;gap:3px}
+.star{font-size:22px;cursor:pointer;color:var(--border2);transition:color .1s;line-height:1;user-select:none}
+.star.on{color:#f59e0b}
+
+/* ── SETTINGS ── */
+.settings-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:14px}
+.settings-block-label{padding:13px 17px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)}
+.settings-row{display:flex;align-items:center;padding:13px 17px;border-bottom:1px solid var(--border);gap:12px}
+.settings-row:last-child{border-bottom:none}
+.settings-icon{width:30px;height:30px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.settings-icon svg{width:15px;height:15px;stroke:var(--text2);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.settings-icon.danger{background:var(--red-bg)}
+.settings-icon.danger svg{stroke:var(--red)}
+.settings-info{flex:1;min-width:0}
+.settings-label{font-size:13px;font-weight:500}
+.settings-sub{font-size:11px;color:var(--text3)}
+.settings-action{margin-left:auto;flex-shrink:0}
+
+/* ── MISC ── */
+.divider{height:1px;background:var(--border);margin:14px 0}
+.empty-state{text-align:center;padding:50px 20px;color:var(--text3)}
+.empty-state-icon{width:40px;height:40px;stroke:var(--border2);fill:none;stroke-width:1.5;margin:0 auto 10px;display:block;stroke-linecap:round;stroke-linejoin:round}
+.empty-state p{font-size:13px}
+.loading{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--text2);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+.loading-lg{width:26px;height:26px;border-width:2.5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.w-full{width:100%}
+.mt-12{margin-top:12px}
+.mt-16{margin-top:16px}
+.gap-8{gap:8px}
+.mono{font-family:'DM Mono',monospace;font-size:12px}
+.banner{border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;display:flex;align-items:flex-start;gap:10px}
+.banner svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke-width:2}
+.banner-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.banner-warn svg{stroke:#d97706}
+.banner-info{background:var(--blue-bg);border:1px solid #bfdbfe;color:#1e40af}
+.banner-info svg{stroke:#2563eb}
+.scan-preview{width:200px;height:200px;border:2px dashed var(--border2);border-radius:12px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:var(--surface2)}
+.scan-preview video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.scan-preview canvas{position:absolute;inset:0;width:100%;height:100%;display:none}
+.scan-line{position:absolute;left:10%;right:10%;height:2px;background:var(--red);animation:scanline 1.5s ease-in-out infinite;display:none}
+@keyframes scanline{0%,100%{top:15%}50%{top:82%}}
+.profile-avatar-large{width:72px;height:72px;border-radius:50%;background:var(--surface3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;color:var(--text2);flex-shrink:0;margin:0 auto 16px}
+
+/* ── LOG BADGES ── */
+.action-locked{color:var(--red);font-weight:600}
+.action-unlocked{color:var(--green);font-weight:600}
+
+/* ── ACCESS TYPES ── */
+.access-permanent{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600}
+.access-temporary{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600}
+
+@media(max-width:768px){
+  #sidebar{transform:translateX(-100%);transition:transform .25s}
+  #sidebar.open{transform:none}
+  #main{margin-left:0}
+  .grid-2{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ AUTH ═══════════════════════════════════════════ -->
+<div id="auth-screen" class="active">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <div>
+        <div style="font-size:17px;font-weight:600">QRLockApp</div>
+        <div style="font-size:11px;color:var(--text3)">Smart Lock Management</div>
+      </div>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')" id="tab-login">Sign in</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')" id="tab-register">Register</div>
+    </div>
+
+    <!-- Login -->
+    <div id="login-form">
+      <div class="form-group">
+        <label class="form-label">Mobile Number</label>
+        <input class="form-input" id="login-mobile" type="tel" placeholder="10-digit mobile number" maxlength="10">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="login-password" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="login-error" class="form-error" style="display:none;margin-bottom:10px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="login-error-text"></span>
+      </div>
+      <button class="btn btn-primary w-full" style="justify-content:center;padding:10px;font-size:14px" onclick="doLogin()">
+        <span id="login-btn-text">Sign in</span>
+        <span id="login-spinner" class="loading" style="display:none"></span>
+      </button>
+      <div class="auth-footer"><span class="auth-link" onclick="showForgotModal()">Forgot password?</span></div>
+    </div>
+
+    <!-- Register -->
+    <div id="register-form" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="reg-username" type="text" placeholder="Your display name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mobile Number</label>
+        <input class="form-input" id="reg-mobile" type="tel" placeholder="10-digit number" maxlength="10">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="reg-password" type="password" placeholder="Min 6 characters">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm</label>
+          <input class="form-input" id="reg-confirm" type="password" placeholder="Repeat password">
+        </div>
+      </div>
+      <div id="reg-error" class="form-error" style="display:none;margin-bottom:10px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="reg-error-text"></span>
+      </div>
+      <button class="btn btn-primary w-full" style="justify-content:center;padding:10px;font-size:14px" onclick="doRegister()">
+        <span id="reg-btn-text">Create account</span>
+        <span id="reg-spinner" class="loading" style="display:none"></span>
+      </button>
+    </div>
+
+    <div class="demo-bar">
+      <strong>No backend yet?</strong> Try the demo &nbsp;
+      <span class="auth-link" onclick="demoLogin()">Sign in as demo user →</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP SHELL ══════════════════════════════════════ -->
+<div id="app" style="display:none">
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div><div class="logo-text">QRLockApp</div><div class="logo-sub">Smart Lock System</div></div>
+      </div>
+    </div>
+
+    <div class="nav-section">Main</div>
+    <div class="nav-item" data-page="dashboard" onclick="navigate('dashboard')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+    </div>
+    <div class="nav-item" data-page="devices" onclick="navigate('devices')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>My Devices
+    </div>
+    <div class="nav-item" data-page="scanner" onclick="navigate('scanner')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="4" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="7" y="13" width="4" height="4" rx="1"/><path d="M13 15h2v2"/></svg>QR Scanner
+    </div>
+
+    <div class="nav-section">Manage</div>
+    <div class="nav-item" data-page="users" onclick="navigate('users')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>User Management
+    </div>
+    <div class="nav-item" data-page="notifications" onclick="navigate('notifications')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>Notifications
+      <span class="nav-badge" id="notif-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-item" data-page="logs" onclick="navigate('logs')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Activity Logs
+    </div>
+
+    <div class="nav-section">More</div>
+    <div class="nav-item" data-page="feedback" onclick="navigate('feedback')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Feedback
+    </div>
+    <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-card" onclick="navigate('settings')">
+        <div class="user-avatar" id="sidebar-avatar">U</div>
+        <div style="min-width:0">
+          <div class="user-name" id="sidebar-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">User</div>
+          <div class="user-number" id="sidebar-number">—</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-sub" id="topbar-sub">Overview of your smart lock system</div>
+      </div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+
+    <!-- ══ DASHBOARD ══════════════════════════════════════════════ -->
+    <div class="page" id="page-dashboard">
+      <div class="banner banner-warn" id="no-api-banner" style="display:none">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div><strong>Demo mode.</strong> Connect your PHP backend in <span style="cursor:pointer;text-decoration:underline;font-weight:600" onclick="navigate('settings')">Settings → API Config</span> to enable all features.</div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Devices</div><div class="stat-value" id="stat-total">—</div><div class="stat-hint">registered locks</div></div>
+        <div class="stat-card"><div class="stat-label">Locked</div><div class="stat-value" id="stat-locked" style="color:var(--red)">—</div><div class="stat-hint">secured</div></div>
+        <div class="stat-card"><div class="stat-label">Unlocked</div><div class="stat-value" id="stat-unlocked" style="color:var(--green)">—</div><div class="stat-hint">open</div></div>
+        <div class="stat-card"><div class="stat-label">Notifications</div><div class="stat-value" id="stat-notifs">0</div><div class="stat-hint">unread</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Quick Lock Control</div><div class="card-sub">Your devices at a glance</div></div></div>
+          <div id="dash-devices"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Recent Activity</div><div class="card-sub">Latest lock events</div></div></div>
+          <div id="dash-logs"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DEVICES ════════════════════════════════════════════════ -->
+    <div class="page" id="page-devices">
+      <div class="section-header">
+        <div><div class="section-title">My Devices</div><div class="section-sub">Manage your registered smart locks</div></div>
+        <button class="btn btn-primary" onclick="openModal('modal-add-device')">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Device
+        </button>
+      </div>
+      <div class="device-grid" id="devices-grid"></div>
+    </div>
+
+    <!-- ══ SCANNER ════════════════════════════════════════════════ -->
+    <div class="page" id="page-scanner">
+      <div class="section-header">
+        <div><div class="section-title">QR Scanner</div><div class="section-sub">Scan a device QR code to lock or unlock it</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:700px">
+        <div class="card" style="text-align:center">
+          <div class="card-title" style="margin-bottom:16px">Camera Scan</div>
+          <div class="scan-preview" id="scan-box">
+            <svg width="70" height="70" viewBox="0 0 24 24" style="stroke:var(--border2);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round" id="scan-placeholder"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="4" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="7" y="13" width="4" height="4" rx="1"/><path d="M13 15h2v2"/></svg>
+            <video id="qr-video" autoplay muted playsinline style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>
+            <canvas id="qr-canvas" style="display:none;position:absolute;inset:0;width:100%;height:100%"></canvas>
+            <div class="scan-line" id="scan-line"></div>
+          </div>
+          <p style="font-size:12px;color:var(--text3);margin-bottom:14px" id="scan-status-text">Point camera at a device QR code</p>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button class="btn btn-primary btn-sm" id="scan-start-btn" onclick="startScan()">
+              <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Start Camera
+            </button>
+            <button class="btn btn-secondary btn-sm" id="scan-stop-btn" onclick="stopScan()" style="display:none">Stop</button>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column;gap:14px">
+          <div>
+            <div class="card-title" style="margin-bottom:12px">Manual Entry</div>
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label">Device ID</label>
+              <input class="form-input" id="manual-id" placeholder="e.g. LOCK-A1B2C3D4" onkeydown="if(event.key==='Enter')manualLookup()">
+            </div>
+            <button class="btn btn-secondary btn-sm w-full" style="justify-content:center" onclick="manualLookup()">Look up device</button>
+          </div>
+          <div id="scan-result" style="display:none">
+            <div class="divider"></div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Matched device</div>
+            <div id="scan-device-card"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ USERS ══════════════════════════════════════════════════ -->
+    <div class="page" id="page-users">
+      <div class="section-header">
+        <div><div class="section-title">User Management</div><div class="section-sub">Control who can access your devices</div></div>
+        <button class="btn btn-primary" onclick="openAddUserModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add User
+        </button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Access Type</th><th>Device</th><th>Last Seen</th><th></th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ NOTIFICATIONS ══════════════════════════════════════════ -->
+    <div class="page" id="page-notifications">
+      <div class="section-header">
+        <div><div class="section-title">Notifications</div><div class="section-sub">System alerts and messages</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="markAllRead()">Mark all read</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-send-notif')">
+            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Send
+          </button>
+        </div>
+      </div>
+      <div class="card" style="padding:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" id="nf-btn-all" onclick="filterNotifs('all')">All</button>
+            <button class="btn btn-ghost btn-sm" id="nf-btn-unread" onclick="filterNotifs('unread')">Unread</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red);font-size:11px" onclick="clearNotifs()">Clear all</button>
+        </div>
+        <div id="notifs-list" style="padding:0 16px;min-height:100px"></div>
+      </div>
+    </div>
+
+    <!-- ══ LOGS ═══════════════════════════════════════════════════ -->
+    <div class="page" id="page-logs">
+      <div class="section-header">
+        <div><div class="section-title">Activity Logs</div><div class="section-sub">Complete record of lock/unlock events</div></div>
+        <select class="form-input" id="log-device-filter" style="width:180px" onchange="loadLogs()">
+          <option value="">All devices</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Device</th><th>Action</th><th>Timestamp</th><th></th></tr></thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FEEDBACK ═══════════════════════════════════════════════ -->
+    <div class="page" id="page-feedback">
+      <div class="section-header">
+        <div><div class="section-title">Feedback & Reviews</div><div class="section-sub">Share your experience with QRLockApp</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">Write a Review</div>
+          <div class="form-group">
+            <label class="form-label">Your Rating</label>
+            <div class="stars" id="star-row">
+              <span class="star" onclick="setRating(1)">★</span>
+              <span class="star" onclick="setRating(2)">★</span>
+              <span class="star" onclick="setRating(3)">★</span>
+              <span class="star" onclick="setRating(4)">★</span>
+              <span class="star" onclick="setRating(5)">★</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Review</label>
+            <textarea class="form-input" id="feedback-text" rows="5" placeholder="Tell us what you think about the app..."></textarea>
+          </div>
+          <div id="feedback-error" class="form-error" style="display:none;margin-bottom:10px">
+            <span id="feedback-error-text"></span>
+          </div>
+          <button class="btn btn-primary w-full" style="justify-content:center" onclick="submitFeedback()">
+            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Submit Review
+          </button>
+        </div>
+        <div class="card" style="padding:0">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <div class="card-title">All Reviews</div>
+            <div style="font-size:12px;color:var(--text3)" id="review-count"></div>
+          </div>
+          <div id="reviews-list" style="max-height:420px;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS ═══════════════════════════════════════════════ -->
+    <div class="page" id="page-settings">
+      <div class="section-header">
+        <div><div class="section-title">Settings</div><div class="section-sub">Account and API configuration</div></div>
+      </div>
+
+      <!-- Profile -->
+      <div class="settings-block">
+        <div class="settings-block-label">Profile</div>
+        <div style="padding:20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px">
+          <div class="user-avatar" id="settings-avatar" style="width:52px;height:52px;font-size:20px">U</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:600;margin-bottom:2px" id="settings-name-display">—</div>
+            <div style="font-size:13px;color:var(--text3)" id="settings-mobile-display">—</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="openModal('modal-edit-profile')">Edit Profile</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <div class="settings-info"><div class="settings-label">Change Password</div><div class="settings-sub">Update your login password</div></div>
+          <div class="settings-action"><button class="btn btn-secondary btn-sm" onclick="openModal('modal-change-pass')">Change</button></div>
+        </div>
+      </div>
+
+      <!-- API -->
+      <div class="settings-block">
+        <div class="settings-block-label">API Configuration</div>
+        <div class="settings-row">
+          <div class="settings-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          <div class="settings-info"><div class="settings-label">Backend URL</div><div class="settings-sub">Your PHP server base address</div></div>
+          <div class="settings-action" style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="api-url-input" style="width:240px" placeholder="http://localhost/QrLockApp">
+            <button class="btn btn-primary btn-sm" onclick="saveAPIUrl()">Save</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="settings-info"><div class="settings-label">Connection Status</div><div class="settings-sub" id="api-status">Not tested</div></div>
+          <div class="settings-action"><button class="btn btn-secondary btn-sm" onclick="testAPI()">Test</button></div>
+        </div>
+      </div>
+
+      <!-- Account Actions -->
+      <div class="settings-block">
+        <div class="settings-block-label">Account</div>
+        <div class="settings-row">
+          <div class="settings-icon danger"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></div>
+          <div class="settings-info"><div class="settings-label" style="color:var(--red)">Sign Out</div><div class="settings-sub">Sign out of your account</div></div>
+          <div class="settings-action"><button class="btn btn-danger btn-sm" onclick="logout()">Sign out</button></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════════ MODALS ════════════════════════════════════════ -->
+
+<!-- Add Device -->
+<div class="modal-overlay" id="modal-add-device">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Device</div>
+      <button class="modal-close" onclick="closeModal('modal-add-device')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Device Name</label>
+      <input class="form-input" id="new-dev-name" placeholder="e.g. Front Door">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Device Type</label>
+      <select class="form-input" id="new-dev-type">
+        <option>Door Lock</option><option>Gate Lock</option><option>Cabinet Lock</option><option>Padlock</option><option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Device ID / QR Code Value</label>
+      <input class="form-input" id="new-dev-id" placeholder="e.g. LOCK-A1B2C3D4">
+      <div class="form-hint">This must match the QR code printed on the device.</div>
+    </div>
+    <div id="add-dev-err" class="form-error" style="display:none;margin-bottom:8px"><span id="add-dev-err-text"></span></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-device')">Cancel</button>
+      <button class="btn btn-primary" onclick="doAddDevice()">
+        <span id="add-dev-btn">Add Device</span>
+        <span id="add-dev-spin" class="loading" style="display:none"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add User -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add User</div>
+      <button class="modal-close" onclick="closeModal('modal-add-user')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Full Name</label>
+      <input class="form-input" id="new-user-name" placeholder="User's name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Device</label>
+      <select class="form-input" id="new-user-device"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Access Type</label>
+      <select class="form-input" id="new-user-access">
+        <option value="Permanent">Permanent</option>
+        <option value="Temporary">Temporary</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-user')">Cancel</button>
+      <button class="btn btn-primary" onclick="doAddUser()">Add User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Notification -->
+<div class="modal-overlay" id="modal-send-notif">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Send Notification</div>
+      <button class="modal-close" onclick="closeModal('modal-send-notif')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Recipient Mobile Number</label>
+      <input class="form-input" id="notif-to" placeholder="10-digit number">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Message</label>
+      <textarea class="form-input" id="notif-msg" rows="3" placeholder="Type your message..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-send-notif')">Cancel</button>
+      <button class="btn btn-primary" onclick="doSendNotif()">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Send
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password -->
+<div class="modal-overlay" id="modal-change-pass">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Change Password</div>
+      <button class="modal-close" onclick="closeModal('modal-change-pass')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">New Password</label>
+      <input class="form-input" id="new-pass" type="password" placeholder="Min 6 characters">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm Password</label>
+      <input class="form-input" id="confirm-pass" type="password" placeholder="Repeat new password">
+    </div>
+    <div id="chpass-err" class="form-error" style="display:none;margin-bottom:8px"><span id="chpass-err-text"></span></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-change-pass')">Cancel</button>
+      <button class="btn btn-primary" onclick="doChangePass()">Update Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Profile -->
+<div class="modal-overlay" id="modal-edit-profile">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Profile</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-profile')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="edit-username" placeholder="Display name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Time Zone</label>
+      <select class="form-input" id="edit-timezone">
+        <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+        <option value="UTC">UTC</option>
+        <option value="America/New_York">America/New_York (EST)</option>
+        <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+        <option value="Europe/London">Europe/London (GMT)</option>
+        <option value="Europe/Paris">Europe/Paris (CET)</option>
+        <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+        <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+        <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+      </select>
+    </div>
+    <div id="edit-profile-err" class="form-error" style="display:none;margin-bottom:8px"><span id="edit-profile-err-text"></span></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-profile')">Cancel</button>
+      <button class="btn btn-primary" onclick="doEditProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot Password -->
+<div class="modal-overlay" id="modal-forgot">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Reset Password</div>
+      <button class="modal-close" onclick="closeModal('modal-forgot')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:16px">Enter your registered mobile number to verify your account, then set a new password.</p>
+    <div class="form-group">
+      <label class="form-label">Mobile Number</label>
+      <input class="form-input" id="forgot-mobile" placeholder="Your registered mobile number">
+    </div>
+    <div id="forgot-step2" style="display:none">
+      <div class="banner banner-info" style="margin-bottom:14px">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Number verified. Set your new password below.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input class="form-input" id="forgot-newpass" type="password" placeholder="Min 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <input class="form-input" id="forgot-confirmpass" type="password" placeholder="Repeat new password">
+      </div>
+    </div>
+    <div id="forgot-err" class="form-error" style="display:none;margin-bottom:8px"><span id="forgot-err-text"></span></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-forgot')">Cancel</button>
+      <button class="btn btn-primary" id="forgot-btn" onclick="doForgotStep()">Verify Number</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let API = localStorage.getItem('qrlock_api') || '';
+let user = null;
+let devices = [];
+let notifs = [];
+let logs = [];
+let currentRating = 0;
+let forgotStep = 1;
+let qrStream = null;
+let qrAnimFrame = null;
+let scannedDeviceId = null;
+let notifsFilter = 'all';
+
+// ═══════════════════════════════════════════════════════════════
+//  API HELPERS
+// ═══════════════════════════════════════════════════════════════
+function apiUrl(path){ return API.replace(/\/+$/,'') + '/' + path; }
+
+async function call(path, method='GET', data=null){
+  if(!API) throw new Error('API not configured');
+  const opts = { method };
+  if(data){
+    const fd = new URLSearchParams();
+    Object.entries(data).forEach(([k,v]) => fd.append(k, String(v ?? '')));
+    opts.body = fd;
+    opts.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  }
+  const r = await fetch(apiUrl(path), opts);
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════════
+function toast(msg, type=''){
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════════════
+function switchAuthTab(t){
+  document.getElementById('tab-login').classList.toggle('active', t==='login');
+  document.getElementById('tab-register').classList.toggle('active', t==='register');
+  document.getElementById('login-form').style.display = t==='login'?'block':'none';
+  document.getElementById('register-form').style.display = t==='register'?'block':'none';
+}
+
+function showErr(id, msg){ const el=document.getElementById(id); el.style.display='flex'; document.getElementById(id+'-text').textContent=msg; }
+function hideErr(id){ document.getElementById(id).style.display='none'; }
+
+async function doLogin(){
+  hideErr('login-error');
+  const mobile = document.getElementById('login-mobile').value.trim();
+  const password = document.getElementById('login-password').value;
+  if(!mobile||!password){ showErr('login-error','Enter your mobile number and password'); return; }
+  setBtnState('login-btn-text','login-spinner','Signing in…',true);
+  try{
+    const res = await call('login.php','POST',{MobileNumber:mobile,Password:password});
+    if(res.status){ user = res.data; user.mobile = mobile; enterApp(); }
+    else showErr('login-error', res.message||'Login failed');
+  }catch(e){ showErr('login-error','Could not reach server. Set your API URL in Settings first.'); }
+  setBtnState('login-btn-text','login-spinner','Sign in',false);
+}
+
+async function doRegister(){
+  hideErr('reg-error');
+  const u=document.getElementById('reg-username').value.trim();
+  const m=document.getElementById('reg-mobile').value.trim();
+  const p=document.getElementById('reg-password').value;
+  const c=document.getElementById('reg-confirm').value;
+  if(!u||!m||!p||!c){ showErr('reg-error','All fields are required'); return; }
+  if(!/^\d{10}$/.test(m)){ showErr('reg-error','Enter a valid 10-digit mobile number'); return; }
+  if(p.length<6){ showErr('reg-error','Password must be at least 6 characters'); return; }
+  if(p!==c){ showErr('reg-error','Passwords do not match'); return; }
+  setBtnState('reg-btn-text','reg-spinner','Creating…',true);
+  try{
+    const res = await call('register.php','POST',{Username:u,Mobile:m,password:p,re_password:c});
+    if(res.status){ toast('Account created! Please sign in.','success'); switchAuthTab('login'); }
+    else showErr('reg-error', res.message||'Registration failed');
+  }catch(e){ showErr('reg-error','Could not reach server. Set your API URL in Settings first.'); }
+  setBtnState('reg-btn-text','reg-spinner','Create account',false);
+}
+
+function demoLogin(){
+  user = { Username:'Demo User', username:'Demo User', mobile:'9876543210', Mobile:'9876543210', Id:0 };
+  enterApp();
+  toast('Running in demo mode — connect your backend in Settings','warning');
+}
+
+function setBtnState(textId,spinnerId,label,loading){
+  document.getElementById(textId).textContent=label;
+  document.getElementById(spinnerId).style.display=loading?'inline-block':'none';
+}
+
+function enterApp(){
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('app').style.display='flex';
+  const name = user.Username||user.username||'User';
+  const mobile = user.mobile||user.Mobile||'';
+  document.getElementById('sidebar-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('sidebar-name').textContent = name;
+  document.getElementById('sidebar-number').textContent = mobile;
+  document.getElementById('settings-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('settings-name-display').textContent = name;
+  document.getElementById('settings-mobile-display').textContent = mobile;
+  document.getElementById('api-url-input').value = API;
+  navigate('dashboard');
+}
+
+function logout(){
+  if(!confirm('Sign out of QRLockApp?')) return;
+  stopScan();
+  user=null; devices=[]; notifs=[]; logs=[];
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-screen').classList.add('active');
+  switchAuthTab('login');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+const PAGE_META = {
+  dashboard:     { title:'Dashboard',       sub:'Overview of your smart lock system' },
+  devices:       { title:'My Devices',      sub:'Manage your registered smart locks' },
+  scanner:       { title:'QR Scanner',      sub:'Scan a QR code to lock or unlock a device' },
+  users:         { title:'User Management', sub:'Control who can access your devices' },
+  notifications: { title:'Notifications',   sub:'System alerts and access events' },
+  logs:          { title:'Activity Logs',   sub:'Complete record of lock/unlock events' },
+  feedback:      { title:'Feedback & Reviews', sub:'Share your experience' },
+  settings:      { title:'Settings',        sub:'Account and API configuration' },
+};
+
+function navigate(page){
+  stopScan();
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page===page));
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const m = PAGE_META[page] || { title:page, sub:'' };
+  document.getElementById('topbar-title').textContent = m.title;
+  document.getElementById('topbar-sub').textContent = m.sub;
+  // Page-specific loaders
+  if(page==='dashboard')     loadDashboard();
+  if(page==='devices')       loadDevices();
+  if(page==='users')         loadUsers();
+  if(page==='notifications') loadNotifications();
+  if(page==='logs')          loadLogs();
+  if(page==='feedback')      loadFeedback();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+async function loadDashboard(){
+  // Show/hide demo banner
+  document.getElementById('no-api-banner').style.display = API ? 'none' : 'flex';
+  // Load devices
+  try{
+    const mobile = user?.mobile||user?.Mobile||'';
+    const res = await call('fetchlock.php?number='+encodeURIComponent(mobile));
+    devices = res.status ? (res.data||[]) : demoDevices();
+  }catch(e){ devices = demoDevices(); }
+  // Load logs for dash
+  try{
+    const res = await call('device_logs.php');
+    logs = (res.status==='success') ? (res.logs||[]) : [];
+  }catch(e){ logs=[]; }
+  updateStats();
+  renderDashDevices();
+  renderDashLogs();
+  syncDeviceDropdowns();
+}
+
+function demoDevices(){
+  return [
+    {id:1, DeviceName:'Front Door', DeviceType:'Door Lock', DeviceId:'LOCK-DEMO1', number:'demo', lock:'NO'},
+    {id:2, DeviceName:'Back Gate',  DeviceType:'Gate Lock',  DeviceId:'LOCK-DEMO2', number:'demo', lock:'Yes'},
+  ];
+}
+
+function updateStats(){
+  const locked = devices.filter(d=>isLocked(d)).length;
+  document.getElementById('stat-total').textContent   = devices.length;
+  document.getElementById('stat-locked').textContent  = locked;
+  document.getElementById('stat-unlocked').textContent= devices.length - locked;
+  document.getElementById('stat-notifs').textContent  = notifs.filter(n=>!n.read).length;
+  const ub = notifs.filter(n=>!n.read).length;
+  const badge = document.getElementById('notif-badge');
+  badge.textContent = ub;
+  badge.style.display = ub>0 ? 'inline-block' : 'none';
+}
+
+function isLocked(d){ return d.lock==='Yes'||d.lock==='YES'; }
+
+function renderDashDevices(){
+  const el = document.getElementById('dash-devices');
+  if(!devices.length){ el.innerHTML='<div class="empty-state"><p>No devices yet</p></div>'; return; }
+  el.innerHTML = devices.slice(0,5).map(d => {
+    const locked = isLocked(d);
+    return `<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="width:34px;height:34px;border-radius:8px;background:${locked?'#fef2f2':'#f0fdf4'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${locked?'var(--red)':'var(--green)'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.DeviceName}</div><div style="font-size:11px;color:var(--text3)">${d.DeviceType}</div></div>
+      <span class="badge ${locked?'badge-red':'badge-green'}"><span class="badge-dot"></span>${locked?'Locked':'Unlocked'}</span>
+    </div>`;
+  }).join('') + (devices.length>5 ? `<div style="text-align:center;padding:10px 0;font-size:12px;color:var(--blue);cursor:pointer" onclick="navigate('devices')">View all ${devices.length} devices →</div>` : '');
+}
+
+function renderDashLogs(){
+  const el = document.getElementById('dash-logs');
+  if(!logs.length){ el.innerHTML='<div style="padding:24px 0;text-align:center;font-size:12px;color:var(--text3)">No activity yet</div>'; return; }
+  const devMap = {};
+  devices.forEach(d => devMap[d.id] = d.DeviceName);
+  el.innerHTML = logs.slice(0,6).map(l => {
+    const unlock = (l.Action||'').toLowerCase().includes('unlock');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="width:7px;height:7px;border-radius:50%;background:${unlock?'var(--green)':'var(--red)'};flex-shrink:0"></div>
+      <div style="flex:1;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${devMap[l.DeviceID]||'Device '+l.DeviceID} — <span style="font-weight:600;color:${unlock?'var(--green)':'var(--red)'}">${l.Action}</span></div>
+      <div style="font-size:11px;color:var(--text3);flex-shrink:0">${l.Timestamp ? new Date(l.Timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DEVICES
+// ═══════════════════════════════════════════════════════════════
+async function loadDevices(){
+  const grid = document.getElementById('devices-grid');
+  grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px"><span class="loading loading-lg"></span></div>';
+  try{
+    const mobile = user?.mobile||user?.Mobile||'';
+    const res = await call('fetchlock.php?number='+encodeURIComponent(mobile));
+    devices = res.status ? (res.data||[]) : demoDevices();
+  }catch(e){ devices = demoDevices(); }
+  renderDeviceGrid();
+  syncDeviceDropdowns();
+  updateStats();
+}
+
+function renderDeviceGrid(){
+  const grid = document.getElementById('devices-grid');
+  if(!devices.length){
+    grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1">
+      <svg class="empty-state-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <p>No devices yet. Add your first smart lock.</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = devices.map(d => {
+    const locked = isLocked(d);
+    return `<div class="device-card">
+      <div class="device-icon-wrap ${locked?'locked':'unlocked'}">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 ${locked?'10 0 v4':'5-5 5 5 0 0 1 5 4.9v4.1'}"/></svg>
+      </div>
+      <div class="device-name">${esc(d.DeviceName)}</div>
+      <div class="device-type">${esc(d.DeviceType)}</div>
+      <div class="device-id-tag">${esc(d.DeviceId||d.DeviceID||'')}</div>
+      <span class="badge ${locked?'badge-red':'badge-green'}" style="margin-bottom:13px"><span class="badge-dot"></span>${locked?'Locked':'Unlocked'}</span>
+      <div class="lock-toggle">
+        <button class="lock-btn do-lock" ${locked?'disabled':''} onclick="toggleLock(${d.id},'Yes')">Lock</button>
+        <button class="lock-btn do-unlock" ${!locked?'disabled':''} onclick="toggleLock(${d.id},'NO')">Unlock</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleLock(id, state){
+  try{
+    const res = await call('updatelock.php','POST',{id:String(id),lock:state});
+    if(res.status){
+      const d = devices.find(x=>String(x.id)===String(id));
+      if(d) d.lock = state;
+      renderDeviceGrid();
+      renderDashDevices();
+      updateStats();
+      toast(state==='Yes'?'Locked':'Unlocked', state==='Yes'?'error':'success');
+      logAction(id, state==='Yes'?'Locked':'Unlocked');
+    } else toast(res.message||'Update failed','error');
+  }catch(e){ toast('Server error','error'); }
+}
+
+async function logAction(deviceId, action){
+  try{ await call('device_logs.php','POST',{DeviceID:String(deviceId),Action:action}); }catch(e){}
+}
+
+function syncDeviceDropdowns(){
+  // Log filter
+  const lf = document.getElementById('log-device-filter');
+  const cur = lf.value;
+  lf.innerHTML = '<option value="">All devices</option>' + devices.map(d=>`<option value="${d.DeviceId||d.DeviceID}">${esc(d.DeviceName)}</option>`).join('');
+  lf.value = cur;
+  // User device
+  const ud = document.getElementById('new-user-device');
+  if(ud) ud.innerHTML = devices.map(d=>`<option value="${d.id}">${esc(d.DeviceName)}</option>`).join('') || '<option>No devices</option>';
+}
+
+async function doAddDevice(){
+  const name  = document.getElementById('new-dev-name').value.trim();
+  const type  = document.getElementById('new-dev-type').value;
+  const devId = document.getElementById('new-dev-id').value.trim();
+  const errEl = document.getElementById('add-dev-err');
+  errEl.style.display='none';
+  if(!name||!devId){ document.getElementById('add-dev-err-text').textContent='Name and Device ID are required'; errEl.style.display='flex'; return; }
+  document.getElementById('add-dev-btn').textContent='Adding…';
+  document.getElementById('add-dev-spin').style.display='inline-block';
+  try{
+    const mobile = user?.mobile||user?.Mobile||'';
+    const res = await call('add_device.php','POST',{DeviceName:name,DeviceType:type,DeviceId:devId,lock:'NO',number:mobile});
+    if(res.status){ closeModal('modal-add-device'); toast('Device added!','success'); loadDevices(); }
+    else{ document.getElementById('add-dev-err-text').textContent=res.message||'Failed'; errEl.style.display='flex'; }
+  }catch(e){ document.getElementById('add-dev-err-text').textContent='Server error'; errEl.style.display='flex'; }
+  document.getElementById('add-dev-btn').textContent='Add Device';
+  document.getElementById('add-dev-spin').style.display='none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  QR SCANNER (uses jsQR for real decoding)
+// ═══════════════════════════════════════════════════════════════
+async function startScan(){
+  try{
+    qrStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const video = document.getElementById('qr-video');
+    video.srcObject = qrStream;
+    video.style.display = 'block';
+    document.getElementById('scan-placeholder').style.display='none';
+    document.getElementById('scan-start-btn').style.display='none';
+    document.getElementById('scan-stop-btn').style.display='inline-flex';
+    document.getElementById('scan-line').style.display='block';
+    document.getElementById('scan-status-text').textContent='Scanning… point at a QR code';
+    video.addEventListener('loadedmetadata', () => { scanFrame(); });
+  }catch(e){
+    toast('Camera access denied — use manual entry','error');
+  }
+}
+
+function scanFrame(){
+  if(!qrStream) return;
+  const video = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  if(video.readyState !== video.HAVE_ENOUGH_DATA){ qrAnimFrame=requestAnimationFrame(scanFrame); return; }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  const code = window.jsQR && jsQR(imageData.data, imageData.width, imageData.height, {inversionAttempts:'dontInvert'});
+  if(code){
+    stopScan();
+    showScanResult(code.data);
+  } else {
+    qrAnimFrame = requestAnimationFrame(scanFrame);
+  }
+}
+
+function stopScan(){
+  if(qrAnimFrame){ cancelAnimationFrame(qrAnimFrame); qrAnimFrame=null; }
+  if(qrStream){ qrStream.getTracks().forEach(t=>t.stop()); qrStream=null; }
+  const video = document.getElementById('qr-video');
+  if(video){ video.style.display='none'; video.srcObject=null; }
+  const ph = document.getElementById('scan-placeholder');
+  if(ph) ph.style.display='block';
+  const sl = document.getElementById('scan-line');
+  if(sl) sl.style.display='none';
+  const sb = document.getElementById('scan-start-btn');
+  if(sb) sb.style.display='inline-flex';
+  const eb = document.getElementById('scan-stop-btn');
+  if(eb) eb.style.display='none';
+  const st = document.getElementById('scan-status-text');
+  if(st) st.textContent='Point camera at a device QR code';
+}
+
+function showScanResult(devId){
+  toast('QR code detected!','success');
+  document.getElementById('scan-status-text').textContent='Scanned: ' + devId;
+  resolveDevice(devId);
+}
+
+function manualLookup(){
+  const val = document.getElementById('manual-id').value.trim();
+  if(!val) return;
+  resolveDevice(val);
+}
+
+function resolveDevice(devId){
+  scannedDeviceId = devId;
+  const d = devices.find(x=>(x.DeviceId||x.DeviceID)===devId);
+  const el = document.getElementById('scan-result');
+  const dc = document.getElementById('scan-device-card');
+  el.style.display='block';
+  if(d){
+    const locked = isLocked(d);
+    dc.innerHTML=`<div style="background:var(--surface2);border-radius:9px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:3px">${esc(d.DeviceName)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${esc(d.DeviceType)} · <span class="mono">${esc(devId)}</span></div>
+      <span class="badge ${locked?'badge-red':'badge-green'}"><span class="badge-dot"></span>${locked?'Locked':'Unlocked'}</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-danger btn-sm" style="flex:1;justify-content:center" onclick="scanToggle(${d.id},'Yes')">Lock</button>
+      <button class="btn btn-success btn-sm" style="flex:1;justify-content:center" onclick="scanToggle(${d.id},'NO')">Unlock</button>
+    </div>`;
+  } else {
+    dc.innerHTML=`<div style="font-size:13px;color:var(--red);padding:8px 0">No device with ID "<span class="mono">${esc(devId)}</span>" found in your account.</div>`;
+  }
+}
+
+async function scanToggle(id, state){
+  await toggleLock(id, state);
+  document.getElementById('scan-result').style.display='none';
+  scannedDeviceId=null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  USER MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+async function loadUsers(){
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading"></span></td></tr>';
+  try{
+    const res = await call('Usermanagement.php?action=fetchUsers');
+    if(res.status && res.data && res.data.length){
+      tbody.innerHTML = res.data.map(u=>`<tr>
+        <td><div style="font-weight:500">${esc(u.Name)}</div></td>
+        <td><span class="${u.AccessType==='Permanent'?'access-permanent':'access-temporary'}">${esc(u.AccessType)}</span></td>
+        <td>${u.DeviceName?esc(u.DeviceName):'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="color:var(--text3)">${u.LastSeen?new Date(u.LastSeen).toLocaleString():'Never'}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" onclick="toggleAccess('${u.Id}','${u.AccessType==='Permanent'?'Temporary':'Permanent'}')">Toggle</button>
+            <button class="btn btn-danger btn-sm" onclick="removeUser('${u.Id}')">Remove</button>
+          </div>
+        </td>
+      </tr>`).join('');
+    } else {
+      tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:44px;color:var(--text3)">No users added yet</td></tr>';
+    }
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:44px;color:var(--text3)">Could not load users</td></tr>';
+  }
+}
+
+function openAddUserModal(){
+  document.getElementById('new-user-name').value='';
+  syncDeviceDropdowns();
+  openModal('modal-add-user');
+}
+
+async function doAddUser(){
+  const name   = document.getElementById('new-user-name').value.trim();
+  const devId  = document.getElementById('new-user-device').value;
+  const access = document.getElementById('new-user-access').value;
+  if(!name){ toast('Enter a name','error'); return; }
+  try{
+    const res = await call('Usermanagement.php?action=addUser','POST',{Name:name,AccessType:access,DeviceId:devId});
+    if(res.status){ closeModal('modal-add-user'); toast('User added!','success'); loadUsers(); }
+    else toast(res.message||'Failed','error');
+  }catch(e){ toast('Server error','error'); }
+}
+
+async function removeUser(id){
+  if(!confirm('Remove this user?')) return;
+  try{
+    const res = await call('Usermanagement.php?action=removeUsers','POST',{UserIds:id});
+    if(res.status){ toast('User removed','success'); loadUsers(); }
+    else toast(res.message||'Failed','error');
+  }catch(e){ toast('Server error','error'); }
+}
+
+async function toggleAccess(id, access){
+  try{
+    const res = await call('Usermanagement.php?action=updateAccess','POST',{UserId:id,AccessType:access});
+    if(res.status){ toast('Access updated','success'); loadUsers(); }
+    else toast(res.message||'Failed','error');
+  }catch(e){ toast('Server error','error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NOTIFICATIONS — fetches from API + local state
+// ═══════════════════════════════════════════════════════════════
+async function loadNotifications(){
+  const mobile = user?.mobile||user?.Mobile||'';
+  try{
+    const res = await call('notification.php?mobile='+encodeURIComponent(mobile));
+    if(res.status && res.data){
+      // Merge API notifications with local ones (avoid dupes by Id)
+      const apiIds = new Set(notifs.filter(n=>n.source==='api').map(n=>n.id));
+      res.data.forEach(n => {
+        const key = 'api-'+n.Id;
+        if(!notifs.find(x=>x.id===key)){
+          notifs.push({id:key, message:n.message, time:n.created_at?new Date(n.created_at).toLocaleString():'-', read:false, source:'api'});
+        }
+      });
+    }
+  }catch(e){}
+  renderNotifications();
+  updateStats();
+}
+
+function renderNotifications(){
+  const el = document.getElementById('notifs-list');
+  const list = notifsFilter==='unread' ? notifs.filter(n=>!n.read) : notifs;
+  if(!list.length){
+    el.innerHTML=`<div class="empty-state" style="padding:44px 0">
+      <svg class="empty-state-icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <p>${notifsFilter==='unread'?'No unread notifications':'No notifications yet'}</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = list.map(n=>`<div class="notify-item">
+    <div class="notify-dot ${n.read?'read':'unread'}"></div>
+    <div style="flex:1;min-width:0">
+      <div class="notify-msg">${esc(n.message)}</div>
+      <div class="notify-time">${n.time}</div>
+    </div>
+    ${!n.read?`<button class="btn btn-ghost btn-sm" onclick="markRead('${n.id}')" style="flex-shrink:0;color:var(--green)">✓</button>`:''}
+  </div>`).join('');
+}
+
+function filterNotifs(f){
+  notifsFilter=f;
+  document.getElementById('nf-btn-all').className = f==='all'?'btn btn-secondary btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('nf-btn-unread').className = f==='unread'?'btn btn-secondary btn-sm':'btn btn-ghost btn-sm';
+  renderNotifications();
+}
+
+function markRead(id){ const n=notifs.find(x=>x.id===id); if(n){n.read=true;} renderNotifications(); updateStats(); }
+function markAllRead(){ notifs.forEach(n=>n.read=true); renderNotifications(); updateStats(); toast('All marked as read'); }
+function clearNotifs(){ if(!confirm('Clear all notifications?'))return; notifs=[]; renderNotifications(); updateStats(); toast('Cleared'); }
+
+async function doSendNotif(){
+  const to  = document.getElementById('notif-to').value.trim();
+  const msg = document.getElementById('notif-msg').value.trim();
+  if(!to||!msg){ toast('Fill all fields','error'); return; }
+  try{
+    const res = await call('notification.php','POST',{mobile:to,message:msg});
+    if(res.status){
+      notifs.unshift({id:'local-'+Date.now(), message:'To '+to+': '+msg, time:new Date().toLocaleString(), read:false, source:'local'});
+      closeModal('modal-send-notif');
+      toast('Notification sent!','success');
+      renderNotifications(); updateStats();
+    } else toast(res.message||'Failed','error');
+  }catch(e){
+    // Demo fallback: save locally
+    notifs.unshift({id:'local-'+Date.now(), message:'To '+to+': '+msg, time:new Date().toLocaleString(), read:false, source:'local'});
+    closeModal('modal-send-notif');
+    toast('Saved locally (no server connected)','warning');
+    renderNotifications(); updateStats();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ACTIVITY LOGS
+// ═══════════════════════════════════════════════════════════════
+async function loadLogs(){
+  const tbody = document.getElementById('logs-tbody');
+  tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:30px"><span class="loading"></span></td></tr>';
+  const filterDevId = document.getElementById('log-device-filter').value;
+  try{
+    const url = filterDevId ? 'device_logs.php?DeviceID='+encodeURIComponent(filterDevId) : 'device_logs.php';
+    const res = await call(url);
+    if(res.status==='success' && res.logs && res.logs.length){
+      logs = res.logs;
+      const devMap = {};
+      devices.forEach(d => devMap[String(d.id)] = d.DeviceName);
+      tbody.innerHTML = logs.map(l=>{
+        const unlock = (l.Action||'').toLowerCase().includes('unlock');
+        return `<tr>
+          <td><span style="font-weight:500">${esc(devMap[String(l.DeviceID)]||'Device '+l.DeviceID)}</span></td>
+          <td><span class="${unlock?'action-unlocked':'action-locked'}">${esc(l.Action)}</span></td>
+          <td style="color:var(--text3)">${l.Timestamp?new Date(l.Timestamp).toLocaleString():'—'}</td>
+          <td><button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteLog('${l.Id}')">Delete</button></td>
+        </tr>`;
+      }).join('');
+      renderDashLogs();
+    } else {
+      tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:44px;color:var(--text3)">No activity logs yet</td></tr>';
+    }
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:44px;color:var(--text3)">Could not load logs</td></tr>';
+  }
+}
+
+async function deleteLog(id){
+  if(!confirm('Delete this log entry?')) return;
+  try{
+    const r = await fetch(apiUrl('device_logs.php'),{method:'DELETE',body:'Id='+id,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+    const res = await r.json();
+    if(res.status==='success'){ toast('Log deleted','success'); loadLogs(); }
+    else toast('Failed','error');
+  }catch(e){ toast('Server error','error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FEEDBACK
+// ═══════════════════════════════════════════════════════════════
+function setRating(n){
+  currentRating = n;
+  document.querySelectorAll('#star-row .star').forEach((s,i) => s.classList.toggle('on', i<n));
+}
+
+async function submitFeedback(){
+  const review = document.getElementById('feedback-text').value.trim();
+  const errEl  = document.getElementById('feedback-error');
+  errEl.style.display='none';
+  if(!currentRating){ document.getElementById('feedback-error-text').textContent='Select a rating'; errEl.style.display='flex'; return; }
+  if(!review){ document.getElementById('feedback-error-text').textContent='Write your review'; errEl.style.display='flex'; return; }
+  const username = user?.Username||user?.username||'User';
+  try{
+    const res = await call('feedback.php','POST',{Username:username, Review:review, Rating:String(currentRating)});
+    if(res.status){
+      toast('Review submitted!','success');
+      document.getElementById('feedback-text').value='';
+      setRating(0);
+      renderReviews(res.data||[]);
+    } else { document.getElementById('feedback-error-text').textContent=res.message||'Failed'; errEl.style.display='flex'; }
+  }catch(e){ document.getElementById('feedback-error-text').textContent='Server error'; errEl.style.display='flex'; }
+}
+
+async function loadFeedback(){
+  const el = document.getElementById('reviews-list');
+  el.innerHTML='<div style="padding:20px;text-align:center"><span class="loading"></span></div>';
+  try{
+    const res = await call('feedback.php'); // GET
+    renderReviews(res.status ? (res.data||[]) : []);
+  }catch(e){
+    el.innerHTML='<div style="padding:40px;text-align:center;font-size:13px;color:var(--text3)">Could not load reviews</div>';
+  }
+}
+
+function renderReviews(data){
+  const el = document.getElementById('reviews-list');
+  const count = document.getElementById('review-count');
+  count.textContent = data.length ? data.length+' review'+(data.length!==1?'s':'') : '';
+  if(!data.length){ el.innerHTML='<div style="padding:44px;text-align:center;font-size:13px;color:var(--text3)">No reviews yet — be the first!</div>'; return; }
+  const me = user?.Username||user?.username;
+  el.innerHTML = data.map(f=>`<div style="padding:14px 18px;border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;gap:8px">
+      <div style="font-size:13px;font-weight:600">${esc(f.Username)}</div>
+      <div style="font-size:14px;flex-shrink:0">${'★'.repeat(Math.max(0,+f.Rating))}<span style="color:var(--border2)">${'★'.repeat(Math.max(0,5-+f.Rating))}</span></div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5">${esc(f.Review)}</div>
+    ${f.Username===me?`<button class="btn btn-ghost btn-sm" style="color:var(--red);margin-top:8px;padding:4px 8px;font-size:11px" onclick="deleteFeedback('${f.Id}','${esc(f.Username)}')">Delete</button>`:''}
+  </div>`).join('');
+}
+
+async function deleteFeedback(id, username){
+  if(!confirm('Delete your review?')) return;
+  try{
+    const res = await call('feedback.php','POST',{Id:id, Username:username});
+    if(res.status){ toast('Review deleted','success'); loadFeedback(); }
+    else toast('Failed','error');
+  }catch(e){ toast('Server error','error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════════════
+function saveAPIUrl(){
+  const url = document.getElementById('api-url-input').value.trim().replace(/\/+$/,'');
+  API = url;
+  localStorage.setItem('qrlock_api', url);
+  document.getElementById('no-api-banner').style.display = url?'none':'flex';
+  toast('API URL saved','success');
+}
+
+async function testAPI(){
+  const url = document.getElementById('api-url-input').value.trim().replace(/\/+$/,'');
+  if(!url){ toast('Enter an API URL first','error'); return; }
+  const el = document.getElementById('api-status');
+  el.textContent='Testing…'; el.style.color='';
+  try{
+    const r = await fetch(url+'/login.php', {method:'GET', signal:AbortSignal.timeout(5000)});
+    el.textContent='✓ Connected — server responded'; el.style.color='var(--green)';
+  }catch(e){
+    el.textContent='✗ Could not connect — check the URL and ensure the server is running'; el.style.color='var(--red)';
+  }
+}
+
+async function doChangePass(){
+  const np = document.getElementById('new-pass').value;
+  const cp = document.getElementById('confirm-pass').value;
+  const errEl = document.getElementById('chpass-err');
+  errEl.style.display='none';
+  if(!np||!cp){ document.getElementById('chpass-err-text').textContent='Fill both fields'; errEl.style.display='flex'; return; }
+  if(np.length<6){ document.getElementById('chpass-err-text').textContent='Min 6 characters'; errEl.style.display='flex'; return; }
+  if(np!==cp){ document.getElementById('chpass-err-text').textContent='Passwords do not match'; errEl.style.display='flex'; return; }
+  const mobile = user?.mobile||user?.Mobile||'';
+  try{
+    const res = await call('change_password.php','POST',{mobile, new_password:np, confirm_password:cp});
+    if(res.status){ closeModal('modal-change-pass'); toast('Password updated!','success'); }
+    else{ document.getElementById('chpass-err-text').textContent=res.message||'Failed'; errEl.style.display='flex'; }
+  }catch(e){ document.getElementById('chpass-err-text').textContent='Server error'; errEl.style.display='flex'; }
+}
+
+async function doEditProfile(){
+  const username = document.getElementById('edit-username').value.trim();
+  const timezone = document.getElementById('edit-timezone').value;
+  const errEl = document.getElementById('edit-profile-err');
+  errEl.style.display='none';
+  if(!username){ document.getElementById('edit-profile-err-text').textContent='Username is required'; errEl.style.display='flex'; return; }
+  const mobile = user?.mobile||user?.Mobile||'';
+  try{
+    const res = await call('accountSetting.php','POST',{mobile, Username:username, TimeZone:timezone, action:'updateProfile'});
+    if(res.status){
+      user.Username=username; user.username=username;
+      document.getElementById('sidebar-avatar').textContent = username[0].toUpperCase();
+      document.getElementById('sidebar-name').textContent   = username;
+      document.getElementById('settings-avatar').textContent       = username[0].toUpperCase();
+      document.getElementById('settings-name-display').textContent = username;
+      closeModal('modal-edit-profile');
+      toast('Profile updated!','success');
+    } else { document.getElementById('edit-profile-err-text').textContent=res.message||'Failed'; errEl.style.display='flex'; }
+  }catch(e){
+    // Demo mode: just update locally
+    user.Username=username; user.username=username;
+    document.getElementById('sidebar-avatar').textContent         = username[0].toUpperCase();
+    document.getElementById('sidebar-name').textContent           = username;
+    document.getElementById('settings-avatar').textContent        = username[0].toUpperCase();
+    document.getElementById('settings-name-display').textContent  = username;
+    closeModal('modal-edit-profile');
+    toast('Updated locally (demo mode)','warning');
+  }
+}
+
+// Forgot password
+function showForgotModal(){
+  forgotStep=1;
+  document.getElementById('forgot-mobile').value='';
+  document.getElementById('forgot-mobile').disabled=false;
+  document.getElementById('forgot-newpass').value='';
+  document.getElementById('forgot-confirmpass').value='';
+  document.getElementById('forgot-step2').style.display='none';
+  document.getElementById('forgot-err').style.display='none';
+  document.getElementById('forgot-btn').textContent='Verify Number';
+  openModal('modal-forgot');
+}
+
+async function doForgotStep(){
+  const errEl = document.getElementById('forgot-err');
+  errEl.style.display='none';
+  if(forgotStep===1){
+    const mobile = document.getElementById('forgot-mobile').value.trim();
+    if(!mobile){ document.getElementById('forgot-err-text').textContent='Enter your mobile number'; errEl.style.display='flex'; return; }
+    try{
+      const res = await call('forgot_password.php','POST',{Mobile:mobile});
+      if(res.status){
+        forgotStep=2;
+        document.getElementById('forgot-step2').style.display='block';
+        document.getElementById('forgot-btn').textContent='Reset Password';
+        document.getElementById('forgot-mobile').disabled=true;
+      } else { document.getElementById('forgot-err-text').textContent=res.message||'Number not found'; errEl.style.display='flex'; }
+    }catch(e){ document.getElementById('forgot-err-text').textContent='Server error'; errEl.style.display='flex'; }
+  } else {
+    const mobile = document.getElementById('forgot-mobile').value.trim();
+    const np = document.getElementById('forgot-newpass').value;
+    const cp = document.getElementById('forgot-confirmpass').value;
+    if(!np||!cp){ document.getElementById('forgot-err-text').textContent='Fill both password fields'; errEl.style.display='flex'; return; }
+    if(np!==cp){ document.getElementById('forgot-err-text').textContent='Passwords do not match'; errEl.style.display='flex'; return; }
+    try{
+      const res = await call('change_password.php','POST',{mobile, new_password:np, confirm_password:cp});
+      if(res.status){ closeModal('modal-forgot'); toast('Password reset! Please sign in.','success'); }
+      else { document.getElementById('forgot-err-text').textContent=res.message||'Failed'; errEl.style.display='flex'; }
+    }catch(e){ document.getElementById('forgot-err-text').textContent='Server error'; errEl.style.display='flex'; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════════════════════════
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  // Pre-fill edit profile
+  if(id==='modal-edit-profile'){
+    document.getElementById('edit-username').value = user?.Username||user?.username||'';
+    document.getElementById('edit-timezone').value = user?.TimeZone||'Asia/Kolkata';
+  }
+  if(id==='modal-add-device'){
+    document.getElementById('new-dev-name').value='';
+    document.getElementById('new-dev-id').value='';
+    document.getElementById('add-dev-err').style.display='none';
+  }
+  if(id==='modal-change-pass'){
+    document.getElementById('new-pass').value='';
+    document.getElementById('confirm-pass').value='';
+    document.getElementById('chpass-err').style.display='none';
+  }
+  if(id==='modal-send-notif'){
+    document.getElementById('notif-to').value='';
+    document.getElementById('notif-msg').value='';
+  }
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════════
+function esc(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
