@@ -248,12 +248,24 @@ tbody tr:hover td{background:var(--surface2)}
 .access-permanent{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600}
 .access-temporary{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600}
 
+/* ── RESPONSIVE COMPONENT LAYOUTS ── */
+.btn-menu{display:none;background:none;border:none;color:var(--text2);cursor:pointer;padding:8px;border-radius:8px;align-items:center;justify-content:center;margin-right:10px;transition:background 0.2s}
+.btn-menu svg{width:20px;height:20px;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.btn-menu:hover{background:var(--surface2)}
+
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:99;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;transition:opacity 0.25s}
+#sidebar-overlay.active{display:block;opacity:1}
+
+.scanner-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:700px}
+
 @media(max-width:768px){
   #sidebar{transform:translateX(-100%);transition:transform .25s}
   #sidebar.open{transform:none}
   #main{margin-left:0}
   .grid-2{grid-template-columns:1fr}
   .form-row{grid-template-columns:1fr}
+  .btn-menu{display:flex}
+  .scanner-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -337,6 +349,9 @@ tbody tr:hover td{background:var(--surface2)}
 
 <!-- ═══════════════ APP SHELL ══════════════════════════════════════ -->
 <div id="app" style="display:none">
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebar-overlay" onclick="toggleSidebar(event)"></div>
+
   <nav id="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">
@@ -389,6 +404,9 @@ tbody tr:hover td{background:var(--surface2)}
 
   <main id="main">
     <div class="topbar">
+      <button id="menu-btn" class="btn-menu" onclick="toggleSidebar(event)">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div>
         <div class="topbar-title" id="topbar-title">Dashboard</div>
         <div class="topbar-sub" id="topbar-sub">Overview of your smart lock system</div>
@@ -436,7 +454,7 @@ tbody tr:hover td{background:var(--surface2)}
       <div class="section-header">
         <div><div class="section-title">QR Scanner</div><div class="section-sub">Scan a device QR code to lock or unlock it</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:700px">
+      <div class="scanner-grid">
         <div class="card" style="text-align:center">
           <div class="card-title" style="margin-bottom:16px">Camera Scan</div>
           <div class="scan-preview" id="scan-box">
@@ -807,6 +825,14 @@ tbody tr:hover td{background:var(--surface2)}
 <div id="toast-wrap"></div>
 
 <script>
+function toggleSidebar(event) {
+  if (event) event.stopPropagation();
+  const sb = document.getElementById('sidebar');
+  const ol = document.getElementById('sidebar-overlay');
+  if (sb) sb.classList.toggle('open');
+  if (ol) ol.classList.toggle('active');
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════════
@@ -949,6 +975,11 @@ const PAGE_META = {
 
 function navigate(page){
   stopScan();
+  const sb = document.getElementById('sidebar');
+  if(sb) sb.classList.remove('open');
+  const ol = document.getElementById('sidebar-overlay');
+  if(ol) ol.classList.remove('active');
+
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page===page));
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -970,6 +1001,28 @@ function navigate(page){
 async function loadDashboard(){
   // Show/hide demo banner
   document.getElementById('no-api-banner').style.display = API ? 'none' : 'flex';
+  
+  if (user && user.Id === 0) {
+    devices = JSON.parse(localStorage.getItem('mock_devices'));
+    if (!devices) {
+      devices = demoDevices();
+      localStorage.setItem('mock_devices', JSON.stringify(devices));
+    }
+    logs = JSON.parse(localStorage.getItem('mock_logs'));
+    if (!logs) {
+      logs = [
+        { Id: 'log-1', DeviceID: 'LOCK-DEMO1', Action: 'Unlocked', Timestamp: new Date(Date.now() - 3600000).toISOString() },
+        { Id: 'log-2', DeviceID: 'LOCK-DEMO2', Action: 'Locked', Timestamp: new Date(Date.now() - 7200000).toISOString() }
+      ];
+      localStorage.setItem('mock_logs', JSON.stringify(logs));
+    }
+    updateStats();
+    renderDashDevices();
+    renderDashLogs();
+    syncDeviceDropdowns();
+    return;
+  }
+
   // Load devices
   try{
     const mobile = user?.mobile||user?.Mobile||'';
@@ -1044,6 +1097,17 @@ function renderDashLogs(){
 async function loadDevices(){
   const grid = document.getElementById('devices-grid');
   grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px"><span class="loading loading-lg"></span></div>';
+  if (user && user.Id === 0) {
+    devices = JSON.parse(localStorage.getItem('mock_devices'));
+    if (!devices) {
+      devices = demoDevices();
+      localStorage.setItem('mock_devices', JSON.stringify(devices));
+    }
+    renderDeviceGrid();
+    syncDeviceDropdowns();
+    updateStats();
+    return;
+  }
   try{
     const mobile = user?.mobile||user?.Mobile||'';
     const res = await call('fetchlock.php?number='+encodeURIComponent(mobile));
@@ -1082,6 +1146,17 @@ function renderDeviceGrid(){
 }
 
 async function toggleLock(id, state){
+  if (user && user.Id === 0) {
+    const d = devices.find(x=>String(x.id)===String(id));
+    if(d) d.lock = state;
+    localStorage.setItem('mock_devices', JSON.stringify(devices));
+    renderDeviceGrid();
+    renderDashDevices();
+    updateStats();
+    toast(state==='Yes'?'Locked':'Unlocked', state==='Yes'?'error':'success');
+    logAction(d ? (d.DeviceId || d.DeviceID || id) : id, state==='Yes'?'Locked':'Unlocked');
+    return;
+  }
   try{
     const res = await call('updatelock.php','POST',{id:String(id),lock:state});
     if(res.status){
@@ -1091,12 +1166,23 @@ async function toggleLock(id, state){
       renderDashDevices();
       updateStats();
       toast(state==='Yes'?'Locked':'Unlocked', state==='Yes'?'error':'success');
-      logAction(id, state==='Yes'?'Locked':'Unlocked');
+      logAction(d ? (d.DeviceId || d.DeviceID || id) : id, state==='Yes'?'Locked':'Unlocked');
     } else toast(res.message||'Update failed','error');
   }catch(e){ toast('Server error','error'); }
 }
 
 async function logAction(deviceId, action){
+  if (user && user.Id === 0) {
+    const mockLogs = JSON.parse(localStorage.getItem('mock_logs')) || [];
+    mockLogs.unshift({
+      Id: 'log-' + Date.now(),
+      DeviceID: String(deviceId),
+      Action: action,
+      Timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('mock_logs', JSON.stringify(mockLogs));
+    return;
+  }
   try{ await call('device_logs.php','POST',{DeviceID:String(deviceId),Action:action}); }catch(e){}
 }
 
@@ -1120,6 +1206,37 @@ async function doAddDevice(){
   if(!name||!devId){ document.getElementById('add-dev-err-text').textContent='Name and Device ID are required'; errEl.style.display='flex'; return; }
   document.getElementById('add-dev-btn').textContent='Adding…';
   document.getElementById('add-dev-spin').style.display='inline-block';
+  if (user && user.Id === 0) {
+    setTimeout(() => {
+      let mockDevices = JSON.parse(localStorage.getItem('mock_devices')) || demoDevices();
+      if (mockDevices.some(d => (d.DeviceId || d.DeviceID) === devId)) {
+        document.getElementById('add-dev-err-text').textContent = 'A device with this ID is already registered';
+        errEl.style.display = 'flex';
+        document.getElementById('add-dev-btn').textContent='Add Device';
+        document.getElementById('add-dev-spin').style.display='none';
+        return;
+      }
+      const newDevice = {
+        id: Date.now(),
+        DeviceName: name,
+        DeviceType: type,
+        DeviceId: devId,
+        number: 'demo',
+        lock: 'NO'
+      };
+      mockDevices.push(newDevice);
+      localStorage.setItem('mock_devices', JSON.stringify(mockDevices));
+      devices = mockDevices;
+      closeModal('modal-add-device');
+      toast('Device added!','success');
+      document.getElementById('new-dev-name').value = '';
+      document.getElementById('new-dev-id').value = '';
+      loadDevices();
+      document.getElementById('add-dev-btn').textContent='Add Device';
+      document.getElementById('add-dev-spin').style.display='none';
+    }, 300);
+    return;
+  }
   try{
     const mobile = user?.mobile||user?.Mobile||'';
     const res = await call('add_device.php','POST',{DeviceName:name,DeviceType:type,DeviceId:devId,lock:'NO',number:mobile});
@@ -1232,6 +1349,29 @@ async function scanToggle(id, state){
 async function loadUsers(){
   const tbody = document.getElementById('users-tbody');
   tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)"><span class="loading"></span></td></tr>';
+  if (user && user.Id === 0) {
+    const mockUsers = JSON.parse(localStorage.getItem('mock_users')) || [
+      { Id: 1, Name: 'John Doe', AccessType: 'Permanent', LastSeen: new Date(Date.now() - 3600000).toISOString(), DeviceId: 1, DeviceName: 'Front Door' },
+      { Id: 2, Name: 'Jane Smith', AccessType: 'Temporary', LastSeen: null, DeviceId: 2, DeviceName: 'Back Gate' }
+    ];
+    localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+    const mockDevices = JSON.parse(localStorage.getItem('mock_devices')) || demoDevices();
+    const devMap = {};
+    mockDevices.forEach(d => devMap[d.id] = d.DeviceName);
+    tbody.innerHTML = mockUsers.map(u=>`<tr>
+      <td><div style="font-weight:500">${esc(u.Name)}</div></td>
+      <td><span class="${u.AccessType==='Permanent'?'access-permanent':'access-temporary'}">${esc(u.AccessType)}</span></td>
+      <td>${u.DeviceId && devMap[u.DeviceId] ? esc(devMap[u.DeviceId]) : (u.DeviceName ? esc(u.DeviceName) : '<span style="color:var(--text3)">—</span>')}</td>
+      <td style="color:var(--text3)">${u.LastSeen?new Date(u.LastSeen).toLocaleString():'Never'}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="toggleAccess('${u.Id}','${u.AccessType==='Permanent'?'Temporary':'Permanent'}')">Toggle</button>
+          <button class="btn btn-danger btn-sm" onclick="removeUser('${u.Id}')">Remove</button>
+        </div>
+      </td>
+    </tr>`).join('');
+    return;
+  }
   try{
     const res = await call('Usermanagement.php?action=fetchUsers');
     if(res.status && res.data && res.data.length){
@@ -1266,6 +1406,25 @@ async function doAddUser(){
   const devId  = document.getElementById('new-user-device').value;
   const access = document.getElementById('new-user-access').value;
   if(!name){ toast('Enter a name','error'); return; }
+  if (user && user.Id === 0) {
+    const mockUsers = JSON.parse(localStorage.getItem('mock_users')) || [];
+    const mockDevices = JSON.parse(localStorage.getItem('mock_devices')) || demoDevices();
+    const targetDev = mockDevices.find(d => String(d.id) === String(devId));
+    const newUser = {
+      Id: Date.now(),
+      Name: name,
+      AccessType: access,
+      DeviceId: devId ? Number(devId) : null,
+      DeviceName: targetDev ? targetDev.DeviceName : '',
+      LastSeen: null
+    };
+    mockUsers.push(newUser);
+    localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+    closeModal('modal-add-user');
+    toast('User added!','success');
+    loadUsers();
+    return;
+  }
   try{
     const res = await call('Usermanagement.php?action=addUser','POST',{Name:name,AccessType:access,DeviceId:devId});
     if(res.status){ closeModal('modal-add-user'); toast('User added!','success'); loadUsers(); }
@@ -1275,6 +1434,14 @@ async function doAddUser(){
 
 async function removeUser(id){
   if(!confirm('Remove this user?')) return;
+  if (user && user.Id === 0) {
+    let mockUsers = JSON.parse(localStorage.getItem('mock_users')) || [];
+    mockUsers = mockUsers.filter(u => String(u.Id) !== String(id));
+    localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+    toast('User removed','success');
+    loadUsers();
+    return;
+  }
   try{
     const res = await call('Usermanagement.php?action=removeUsers','POST',{UserIds:id});
     if(res.status){ toast('User removed','success'); loadUsers(); }
@@ -1283,6 +1450,15 @@ async function removeUser(id){
 }
 
 async function toggleAccess(id, access){
+  if (user && user.Id === 0) {
+    let mockUsers = JSON.parse(localStorage.getItem('mock_users')) || [];
+    const u = mockUsers.find(x => String(x.Id) === String(id));
+    if (u) u.AccessType = access;
+    localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+    toast('Access updated','success');
+    loadUsers();
+    return;
+  }
   try{
     const res = await call('Usermanagement.php?action=updateAccess','POST',{UserId:id,AccessType:access});
     if(res.status){ toast('Access updated','success'); loadUsers(); }
@@ -1294,6 +1470,20 @@ async function toggleAccess(id, access){
 //  NOTIFICATIONS — fetches from API + local state
 // ═══════════════════════════════════════════════════════════════
 async function loadNotifications(){
+  if (user && user.Id === 0) {
+    let mockNotifs = JSON.parse(localStorage.getItem('mock_notifs'));
+    if (!mockNotifs) {
+      mockNotifs = [
+        { id: 'mock-1', message: 'Welcome to QRLockApp Demo!', time: new Date().toLocaleString(), read: false, source: 'local' },
+        { id: 'mock-2', message: 'Front Door unlocked by John Doe', time: new Date(Date.now() - 1800000).toLocaleString(), read: true, source: 'local' }
+      ];
+      localStorage.setItem('mock_notifs', JSON.stringify(mockNotifs));
+    }
+    notifs = mockNotifs;
+    renderNotifications();
+    updateStats();
+    return;
+  }
   const mobile = user?.mobile||user?.Mobile||'';
   try{
     const res = await call('notification.php?mobile='+encodeURIComponent(mobile));
@@ -1339,14 +1529,59 @@ function filterNotifs(f){
   renderNotifications();
 }
 
-function markRead(id){ const n=notifs.find(x=>x.id===id); if(n){n.read=true;} renderNotifications(); updateStats(); }
-function markAllRead(){ notifs.forEach(n=>n.read=true); renderNotifications(); updateStats(); toast('All marked as read'); }
-function clearNotifs(){ if(!confirm('Clear all notifications?'))return; notifs=[]; renderNotifications(); updateStats(); toast('Cleared'); }
+function markRead(id){
+  const n=notifs.find(x=>x.id===id);
+  if(n){
+    n.read=true;
+    if (user && user.Id === 0) {
+      localStorage.setItem('mock_notifs', JSON.stringify(notifs));
+    }
+  }
+  renderNotifications();
+  updateStats();
+}
+function markAllRead(){
+  notifs.forEach(n=>n.read=true);
+  if (user && user.Id === 0) {
+    localStorage.setItem('mock_notifs', JSON.stringify(notifs));
+  }
+  renderNotifications();
+  updateStats();
+  toast('All marked as read');
+}
+function clearNotifs(){
+  if(!confirm('Clear all notifications?'))return;
+  notifs=[];
+  if (user && user.Id === 0) {
+    localStorage.setItem('mock_notifs', JSON.stringify(notifs));
+  }
+  renderNotifications();
+  updateStats();
+  toast('Cleared');
+}
 
 async function doSendNotif(){
   const to  = document.getElementById('notif-to').value.trim();
   const msg = document.getElementById('notif-msg').value.trim();
   if(!to||!msg){ toast('Fill all fields','error'); return; }
+  if (user && user.Id === 0) {
+    const newNotif = {
+      id: 'local-' + Date.now(),
+      message: 'To ' + to + ': ' + msg,
+      time: new Date().toLocaleString(),
+      read: false,
+      source: 'local'
+    };
+    notifs.unshift(newNotif);
+    localStorage.setItem('mock_notifs', JSON.stringify(notifs));
+    closeModal('modal-send-notif');
+    toast('Notification sent!','success');
+    renderNotifications();
+    updateStats();
+    document.getElementById('notif-to').value = '';
+    document.getElementById('notif-msg').value = '';
+    return;
+  }
   try{
     const res = await call('notification.php','POST',{mobile:to,message:msg});
     if(res.status){
@@ -1371,6 +1606,35 @@ async function loadLogs(){
   const tbody = document.getElementById('logs-tbody');
   tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:30px"><span class="loading"></span></td></tr>';
   const filterDevId = document.getElementById('log-device-filter').value;
+  if (user && user.Id === 0) {
+    let mockLogs = JSON.parse(localStorage.getItem('mock_logs'));
+    if (!mockLogs) {
+      mockLogs = [
+        { Id: 'log-1', DeviceID: 'LOCK-DEMO1', Action: 'Unlocked', Timestamp: new Date(Date.now() - 3600000).toISOString() },
+        { Id: 'log-2', DeviceID: 'LOCK-DEMO2', Action: 'Locked', Timestamp: new Date(Date.now() - 7200000).toISOString() }
+      ];
+      localStorage.setItem('mock_logs', JSON.stringify(mockLogs));
+    }
+    logs = mockLogs;
+    const mockDevices = JSON.parse(localStorage.getItem('mock_devices')) || demoDevices();
+    const devMap = {};
+    mockDevices.forEach(d => devMap[d.DeviceId || d.DeviceID] = d.DeviceName);
+    let filtered = logs;
+    if (filterDevId) {
+      filtered = logs.filter(l => String(l.DeviceID) === String(filterDevId));
+    }
+    tbody.innerHTML = filtered.map(l=>{
+      const unlock = (l.Action||'').toLowerCase().includes('unlock');
+      return `<tr>
+        <td><span style="font-weight:500">${esc(devMap[l.DeviceID]||l.DeviceID)}</span></td>
+        <td><span class="${unlock?'action-unlocked':'action-locked'}">${esc(l.Action)}</span></td>
+        <td style="color:var(--text3)">${l.Timestamp?new Date(l.Timestamp).toLocaleString():'—'}</td>
+        <td><button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteLog('${l.Id}')">Delete</button></td>
+      </tr>`;
+    }).join('');
+    renderDashLogs();
+    return;
+  }
   try{
     const url = filterDevId ? 'device_logs.php?DeviceID='+encodeURIComponent(filterDevId) : 'device_logs.php';
     const res = await call(url);
@@ -1398,6 +1662,14 @@ async function loadLogs(){
 
 async function deleteLog(id){
   if(!confirm('Delete this log entry?')) return;
+  if (user && user.Id === 0) {
+    let mockLogs = JSON.parse(localStorage.getItem('mock_logs')) || [];
+    mockLogs = mockLogs.filter(l => String(l.Id) !== String(id));
+    localStorage.setItem('mock_logs', JSON.stringify(mockLogs));
+    toast('Log deleted','success');
+    loadLogs();
+    return;
+  }
   try{
     const r = await fetch(apiUrl('device_logs.php'),{method:'DELETE',body:'Id='+id,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
     const res = await r.json();
@@ -1421,6 +1693,23 @@ async function submitFeedback(){
   if(!currentRating){ document.getElementById('feedback-error-text').textContent='Select a rating'; errEl.style.display='flex'; return; }
   if(!review){ document.getElementById('feedback-error-text').textContent='Write your review'; errEl.style.display='flex'; return; }
   const username = user?.Username||user?.username||'User';
+  if (user && user.Id === 0) {
+    const mockFeedback = JSON.parse(localStorage.getItem('mock_feedback')) || [];
+    const newFeedback = {
+      Id: Date.now(),
+      Username: username,
+      Review: review,
+      Rating: currentRating,
+      created_at: new Date().toISOString()
+    };
+    mockFeedback.unshift(newFeedback);
+    localStorage.setItem('mock_feedback', JSON.stringify(mockFeedback));
+    toast('Review submitted!','success');
+    document.getElementById('feedback-text').value='';
+    setRating(0);
+    renderReviews(mockFeedback);
+    return;
+  }
   try{
     const res = await call('feedback.php','POST',{Username:username, Review:review, Rating:String(currentRating)});
     if(res.status){
@@ -1435,6 +1724,18 @@ async function submitFeedback(){
 async function loadFeedback(){
   const el = document.getElementById('reviews-list');
   el.innerHTML='<div style="padding:20px;text-align:center"><span class="loading"></span></div>';
+  if (user && user.Id === 0) {
+    let mockFeedback = JSON.parse(localStorage.getItem('mock_feedback'));
+    if (!mockFeedback) {
+      mockFeedback = [
+        { Id: 1, Username: 'Alice', Review: 'The QR code unlocking is super fast! Highly recommended.', Rating: 5, created_at: new Date().toISOString() },
+        { Id: 2, Username: 'Bob', Review: 'Really sleek interface. Loving it so far.', Rating: 4, created_at: new Date().toISOString() }
+      ];
+      localStorage.setItem('mock_feedback', JSON.stringify(mockFeedback));
+    }
+    renderReviews(mockFeedback);
+    return;
+  }
   try{
     const res = await call('feedback.php'); // GET
     renderReviews(res.status ? (res.data||[]) : []);
@@ -1461,6 +1762,14 @@ function renderReviews(data){
 
 async function deleteFeedback(id, username){
   if(!confirm('Delete your review?')) return;
+  if (user && user.Id === 0) {
+    let mockFeedback = JSON.parse(localStorage.getItem('mock_feedback')) || [];
+    mockFeedback = mockFeedback.filter(f => String(f.Id) !== String(id));
+    localStorage.setItem('mock_feedback', JSON.stringify(mockFeedback));
+    toast('Review deleted','success');
+    loadFeedback();
+    return;
+  }
   try{
     const res = await call('feedback.php','POST',{Id:id, Username:username});
     if(res.status){ toast('Review deleted','success'); loadFeedback(); }
@@ -1500,6 +1809,15 @@ async function doChangePass(){
   if(!np||!cp){ document.getElementById('chpass-err-text').textContent='Fill both fields'; errEl.style.display='flex'; return; }
   if(np.length<6){ document.getElementById('chpass-err-text').textContent='Min 6 characters'; errEl.style.display='flex'; return; }
   if(np!==cp){ document.getElementById('chpass-err-text').textContent='Passwords do not match'; errEl.style.display='flex'; return; }
+  if (user && user.Id === 0) {
+    setTimeout(() => {
+      closeModal('modal-change-pass');
+      toast('Password updated (demo mode)!','success');
+      document.getElementById('new-pass').value = '';
+      document.getElementById('confirm-pass').value = '';
+    }, 300);
+    return;
+  }
   const mobile = user?.mobile||user?.Mobile||'';
   try{
     const res = await call('change_password.php','POST',{mobile, new_password:np, confirm_password:cp});
@@ -1514,6 +1832,16 @@ async function doEditProfile(){
   const errEl = document.getElementById('edit-profile-err');
   errEl.style.display='none';
   if(!username){ document.getElementById('edit-profile-err-text').textContent='Username is required'; errEl.style.display='flex'; return; }
+  if (user && user.Id === 0) {
+    user.Username=username; user.username=username;
+    document.getElementById('sidebar-avatar').textContent         = username[0].toUpperCase();
+    document.getElementById('sidebar-name').textContent           = username;
+    document.getElementById('settings-avatar').textContent        = username[0].toUpperCase();
+    document.getElementById('settings-name-display').textContent  = username;
+    closeModal('modal-edit-profile');
+    toast('Updated locally (demo mode)','warning');
+    return;
+  }
   const mobile = user?.mobile||user?.Mobile||'';
   try{
     const res = await call('accountSetting.php','POST',{mobile, Username:username, TimeZone:timezone, action:'updateProfile'});

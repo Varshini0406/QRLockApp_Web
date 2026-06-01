@@ -10,7 +10,7 @@ if (!$number) {
 
 $conn = getDB();
 
-$stmt = $conn->prepare("SELECT id, DeviceName, DeviceType, DeviceId, number, lock FROM deviceinfo WHERE number = ?");
+$stmt = $conn->prepare("SELECT id, DeviceName, DeviceType, DeviceId, number, `lock` FROM deviceinfo WHERE number = ?");
 $stmt->bind_param('s', $number);
 $stmt->execute();
 $result = $stmt->get_result();
