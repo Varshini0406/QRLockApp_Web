@@ -4,6 +4,10 @@
 # ─────────────────────────────────────────────
 FROM php:8.2-apache
 
+# Fix: Disable conflicting MPMs, enable only prefork (required for mod_php)
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
+    && a2enmod mpm_prefork
+
 # Install mysqli extension
 RUN docker-php-ext-install mysqli && docker-php-ext-enable mysqli
 
